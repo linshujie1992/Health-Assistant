@@ -79,7 +79,7 @@ function tile(label, value, unit, color, sub) {
 function planReminderCard(ps) {
   const marks = { met: '✓ 已达标', partial: '△ 部分达标', missed: '✕ 未达标', nodata: '○ 今日还没有记录' };
   return el('div.card.plan-reminder', {},
-    el('h2', {}, `📋 ${ps.plan.name}`, el('span', { className: `status-badge ${ps.s}` }, marks[ps.s])),
+    el('h2', {}, ps.plan.name, el('span', { className: `status-badge ${ps.s}` }, marks[ps.s])),
     ps.results.length
       ? ps.results.map(r => el('div.pr-item', {},
           el('span', { className: `status-badge ${r.ok ? 'met' : 'missed'}` }, r.ok ? '✓' : '✕'),
@@ -96,7 +96,7 @@ function mealCard(meal, mi) {
   const kcal = meal.items.reduce((s, it) => s + (it.kcal || 0), 0);
   const protein = meal.items.reduce((s, it) => s + (it.protein || 0), 0);
   const card = el('div.card', {},
-    el('h2', {}, `🍚 ${meal.name}`,
+    el('h2', {}, meal.name,
       el('span', {},
         meal.items.length ? el('span.muted.small', { style: 'margin-right:10px' }, `${fmtNum(kcal)} 千卡`) : null,
         el('button.h-action', { type: 'button', onclick: () => openAddFood(mi, meal.name) }, '＋ 记一笔'),
@@ -311,7 +311,7 @@ function exerciseCard(d) {
   const list = d ? d.exercises : [];
   const total = list.reduce((s, e) => s + (e.kcal || 0), 0);
   const card = el('div.card', {},
-    el('h2', {}, '🏃 运动消耗',
+    el('h2', {}, '运动消耗',
       el('span', {},
         list.length ? el('span.muted.small', { style: 'margin-right:10px' }, `${fmtNum(total)} 千卡`) : null,
         el('button.h-action', { type: 'button', onclick: openAddExercise }, '＋ 记一笔'),
@@ -436,7 +436,7 @@ function bodyCard(d) {
   });
 
   return el('div.card', {},
-    el('h2', {}, '⚖️ 体重与状态'),
+    el('h2', {}, '体重与状态'),
     el('div.field', {}, el('label', {}, '今日体重（公斤）— 想起来就记，不必每天'), weightInput),
     el('div.field', { style: 'margin-bottom:0' }, el('label', {}, '状态备注'), noteInput),
   );

@@ -64,7 +64,7 @@ function profileCard() {
   for (const inp of [genderSel, birthInput, heightInput, weightInput, activitySel]) inp.addEventListener('change', apply);
 
   return el('div.card', {},
-    el('h2', {}, '👤 身体信息'),
+    el('h2', {}, '身体信息'),
     el('div.field-inline', {},
       el('div.field', {}, el('label', {}, '性别'), genderSel),
       el('div.field', {}, el('label', {}, '出生年份'), birthInput),
@@ -82,7 +82,7 @@ function profileCard() {
 
 function mealsCard() {
   const card = el('div.card', {},
-    el('h2', {}, '🍽️ 默认餐次', el('button.h-action', { type: 'button', onclick: addMeal }, '＋ 添加')),
+    el('h2', {}, '默认餐次', el('button.h-action', { type: 'button', onclick: addMeal }, '＋ 添加')),
     el('div.muted.small', { style: 'margin-bottom:8px' }, '新一天的记录会按这里的餐次生成，也可以在记录页临时添加。'),
   );
   state.settings.mealNames.forEach((name, i) => {
@@ -145,7 +145,7 @@ function backupCard() {
   });
 
   return el('div.card', {},
-    el('h2', {}, '💾 数据备份'),
+    el('h2', {}, '数据备份'),
     el('div.small', { style: 'margin-bottom:10px' },
       `目前共有 ${dayCount} 天记录、${state.plans.length} 个计划、${state.knowledge.length} 个知识主题、${state.customFoods.length} 个自定义食物。所有数据只保存在本机。`),
     el('div', { style: 'display:flex;gap:10px' },
@@ -173,12 +173,12 @@ function doExport() {
 
 function aboutCard() {
   return el('div.card', {},
-    el('h2', {}, 'ℹ️ 关于'),
+    el('h2', {}, '关于'),
     el('div.small', { style: 'line-height:1.8' },
       el('div', {}, '个人健康助手 — 饮食、运动、体重记录与分析。'),
       el('div', {}, '数据完全保存在手机本地，无任何联网上传。'),
       el('div.divider'),
-      el('div', { style: 'font-weight:600' }, '📲 安装到 iPhone 主屏幕：'),
+      el('div', { style: 'font-weight:600' }, '安装到 iPhone 主屏幕：'),
       el('div', {}, '1. 用 Safari 打开本应用网址；'),
       el('div', {}, '2. 点击底部“分享”按钮（方框加向上箭头）；'),
       el('div', {}, '3. 选择“添加到主屏幕”，点“添加”。'),

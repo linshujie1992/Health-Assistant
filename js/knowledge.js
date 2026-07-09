@@ -56,7 +56,7 @@ function drawTopicList() {
     }
 
     const card = el('div.card', {},
-      el('h2', {}, '📚 知识主题', el('button.h-action', { type: 'button', onclick: addTopic }, '＋ 新建主题')),
+      el('h2', {}, '知识主题', el('button.h-action', { type: 'button', onclick: addTopic }, '＋ 新建主题')),
     );
     if (!state.knowledge.length) {
       card.appendChild(el('div.empty', {}, '还没有知识主题。\n例如可以建立「孕期注意事项」「减脂常识」等主题，把从各处收集的知识存进来，随时翻阅。'));
@@ -99,7 +99,7 @@ function drawTopic(topic) {
   ));
 
   const card = el('div.card', {},
-    el('h2', {}, `📖 ${topic.topic}`,
+    el('h2', {}, topic.topic,
       el('span', {},
         el('button.h-action', { type: 'button', onclick: () => editEntry(topic, null), style: 'margin-right:10px' }, '＋ 添加知识'),
         el('button.h-action', { type: 'button', style: 'color:var(--critical)', onclick: () => {

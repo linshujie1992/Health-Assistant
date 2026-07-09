@@ -21,7 +21,7 @@ function draw() {
   const ps = planStatus(today());
   if (ps) {
     const card = el('div.card.plan-reminder', {},
-      el('h2', {}, '⏰ 今日提醒', el('span', { className: `status-badge ${ps.s}` }, STATUS_TEXT[ps.s])),
+      el('h2', {}, '今日提醒', el('span', { className: `status-badge ${ps.s}` }, STATUS_TEXT[ps.s])),
       el('div.small', { style: 'margin-bottom:6px' }, `进行中的计划：${ps.plan.name}（${ps.plan.start} ~ ${ps.plan.end}）`),
     );
     if (ps.results.length) {
@@ -54,7 +54,7 @@ function draw() {
 
   // 计划列表
   const listCard = el('div.card', {},
-    el('h2', {}, '🎯 我的计划', el('button.h-action', { type: 'button', onclick: () => openPlanEditor(null) }, '＋ 新建计划')),
+    el('h2', {}, '我的计划', el('button.h-action', { type: 'button', onclick: () => openPlanEditor(null) }, '＋ 新建计划')),
   );
   if (!state.plans.length) {
     listCard.appendChild(el('div.empty', {}, '还没有计划。新建一个计划，设定每天的摄入上限、运动目标，日历上就会显示每天的达标情况。'));

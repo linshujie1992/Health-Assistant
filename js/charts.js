@@ -71,7 +71,7 @@ function draw() {
 
   // 快捷问题
   container.appendChild(el('div.card', {},
-    el('h2', {}, '💡 快速提问'),
+    el('h2', {}, '快速提问'),
     el('div.quick-qs', {},
       quickQ('过去一年体重变化？', '365', ['weight']),
       quickQ('最近一周摄入 vs 消耗？', '7', ['intake', 'burn']),
@@ -344,7 +344,7 @@ function niceTicks(lo, hi, count) {
 // ── 统计结论 ──
 
 function conclusionCard(allDates, start, end) {
-  const card = el('div.card', {}, el('h2', {}, '📈 对比与结论'));
+  const card = el('div.card', {}, el('h2', {}, '对比与结论'));
   const lines = [];
   const recorded = allDates.filter(d => dayHasData(d));
   lines.push(`${start} 至 ${end}，共记录了 ${recorded.length} 天。`);
@@ -446,7 +446,7 @@ function drawSingleDay() {
     container.appendChild(card);
   }
   if (day.weight != null) {
-    container.appendChild(el('div.card', {}, el('h2', {}, '⚖️ 体重'), el('div', { style: 'font-size:24px;font-weight:600' }, `${fmtNum(day.weight, 1)} 公斤`)));
+    container.appendChild(el('div.card', {}, el('h2', {}, '体重'), el('div', { style: 'font-size:24px;font-weight:600' }, `${fmtNum(day.weight, 1)} 公斤`)));
   }
 }
 
