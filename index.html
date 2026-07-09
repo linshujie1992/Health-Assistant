@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>健康助手</title>
+  <meta name="description" content="个人健康助手：饮食热量、蛋白质、运动、体重记录与可视化分析，数据全部保存在本机。">
+  <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="健康助手">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div>
+        <h1>健康助手</h1>
+        <div class="sub" id="topbar-sub"></div>
+      </div>
+    </header>
+
+    <main>
+      <section class="view" id="view-log"></section>
+      <section class="view" id="view-charts"></section>
+      <section class="view" id="view-plan"></section>
+      <section class="view" id="view-knowledge"></section>
+      <section class="view" id="view-me"></section>
+    </main>
+  </div>
+
+  <nav class="tabbar">
+    <button type="button" data-tab="log">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+      记录
+    </button>
+    <button type="button" data-tab="charts">
+      <svg viewBox="0 0 24 24"><path d="M4 19 9 12l4 3 7-9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h16" stroke-linecap="round"/></svg>
+      图表
+    </button>
+    <button type="button" data-tab="plan">
+      <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+      计划
+    </button>
+    <button type="button" data-tab="knowledge">
+      <svg viewBox="0 0 24 24"><path d="M12 6c-2-1.5-4.5-2-8-2v14c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2V4c-3.5 0-6 .5-8 2zM12 6v14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      知识
+    </button>
+    <button type="button" data-tab="me">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6" stroke-linecap="round"/></svg>
+      我的
+    </button>
+  </nav>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
