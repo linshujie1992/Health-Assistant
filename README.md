@@ -37,8 +37,8 @@
 
 ### 部署到 GitHub Pages
 
-仓库 **Settings → Pages → Source** 选择 `main` 分支根目录，保存后访问
-`https://<你的用户名>.github.io/Health-Assistant/` 即可。
+仓库 **Settings → Pages**，Source 选 **Deploy from a branch**，Branch 选仓库的默认分支、目录选 `/ (root)`，保存后一两分钟即可访问
+`https://<你的用户名>.github.io/Health-Assistant/`。
 
 ### 本地预览
 
