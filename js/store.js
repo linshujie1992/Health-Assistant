@@ -14,6 +14,8 @@ function defaultState() {
       weight: null,        // kg，初始体重（有记录后取最近记录）
       activity: 1.2,       // 日常活动系数（不含运动，1.2=久坐）
       mealNames: [...DEFAULT_MEALS],
+      condition: '',       // 特殊状况: '' | 'pregnancy' 孕期 | 't2d' 二型糖尿病
+      goal: null,          // { targetWeight, targetDate, sugarControl }
     },
     days: {},              // 'YYYY-MM-DD' -> { meals, exercises, weight, note }
     customFoods: [],       // { n, k, p, c:'自定义', u:[], a:[] }
@@ -136,15 +138,22 @@ export function pruneDay(dateStr) {
 
 export function dayIntake(dateStr) {
   const d = state.days[dateStr];
-  if (!d) return { kcal: 0, protein: 0 };
-  let kcal = 0, protein = 0;
+  if (!d) return { kcal: 0, protein: 0, carbs: 0, gl: 0 };
+  let kcal = 0, protein = 0, carbs = 0, gl = 0;
   for (const meal of d.meals) {
     for (const it of meal.items) {
       kcal += it.kcal || 0;
       protein += it.protein || 0;
+      carbs += it.carbs || 0;   // 旧记录无碳水字段时按 0 计
+      gl += it.gl || 0;
     }
   }
-  return { kcal: Math.round(kcal), protein: Math.round(protein * 10) / 10 };
+  return {
+    kcal: Math.round(kcal),
+    protein: Math.round(protein * 10) / 10,
+    carbs: Math.round(carbs * 10) / 10,
+    gl: Math.round(gl),
+  };
 }
 
 export function dayExerciseKcal(dateStr) {
@@ -237,6 +246,22 @@ export function planCheck(dateStr, plan) {
       actual: `实际 ${intake.protein} 克`,
       ok: intake.protein >= plan.proteinMin,
       diff: intake.protein - plan.proteinMin,
+    });
+  }
+  if (plan.carbMax) {
+    results.push({
+      label: `碳水 ≤ ${plan.carbMax} 克`,
+      actual: `实际 ${intake.carbs} 克`,
+      ok: intake.carbs <= plan.carbMax,
+      diff: intake.carbs - plan.carbMax,
+    });
+  }
+  if (plan.glMax) {
+    results.push({
+      label: `血糖负荷GL ≤ ${plan.glMax}`,
+      actual: `实际 ${intake.gl}`,
+      ok: intake.gl <= plan.glMax,
+      diff: intake.gl - plan.glMax,
     });
   }
   return results;

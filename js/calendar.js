@@ -1,7 +1,10 @@
 // 计划页：制定每日目标计划，以日历呈现每天的达标状态
 
 import { state, save, uid, today, fmtDate, parseDate, planFor, planStatus, planCheck, dayHasData, dayIntake, dayBurn, dayExerciseKcal, getDay } from './store.js';
+import { buildAdvice } from './advice.js';
 import { el, clear, sheet, toast, fmtNum, confirmDialog } from './ui.js';
+
+let adviceOpen = false; // 记住建议展开状态
 
 let container = null;
 let calYM = today().slice(0, 7); // 当前显示的月份 'YYYY-MM'
@@ -37,6 +40,8 @@ function draw() {
         card.appendChild(el('div.conclusion', {}, '还差一点：' + unmet.map(r => {
           if (r.label.startsWith('摄入')) return `摄入已超出 ${fmtNum(Math.abs(r.diff))} 千卡，后面几餐注意控制`;
           if (r.label.startsWith('运动')) return `运动还差 ${fmtNum(Math.abs(r.diff))} 千卡`;
+          if (r.label.startsWith('碳水')) return `碳水已超出 ${fmtNum(Math.abs(r.diff), 1)} 克，主食换低GI并减量`;
+          if (r.label.startsWith('血糖负荷')) return `GL 已超出 ${fmtNum(Math.abs(r.diff))}，注意选低GI食物`;
           return `蛋白质还差 ${fmtNum(Math.abs(r.diff), 1)} 克`;
         }).join('；') + '。'));
       } else {
@@ -48,6 +53,9 @@ function draw() {
     if (ps.plan.note) card.appendChild(el('div.muted.small', { style: 'margin-top:6px' }, `计划内容：${ps.plan.note}`));
     container.appendChild(card);
   }
+
+  // 目标与建议
+  container.appendChild(goalCard());
 
   // 日历
   container.appendChild(calendarCard());
@@ -64,6 +72,8 @@ function draw() {
       if (p.intakeMax) targets.push(`摄入≤${p.intakeMax}千卡`);
       if (p.exerciseMin) targets.push(`运动≥${p.exerciseMin}千卡`);
       if (p.proteinMin) targets.push(`蛋白质≥${p.proteinMin}克`);
+      if (p.carbMax) targets.push(`碳水≤${p.carbMax}克`);
+      if (p.glMax) targets.push(`GL≤${p.glMax}`);
       listCard.appendChild(el('div.row', {},
         el('div.r-main', { onclick: () => openPlanEditor(p), style: 'cursor:pointer' },
           el('div.r-title', {}, p.name),
@@ -90,6 +100,85 @@ function draw() {
     ),
     el('div.muted.small', { style: 'margin-top:6px' }, '浅色底表示该日期在计划范围内。点击任意日期可查看详情。'),
   ));
+}
+
+// ── 目标与建议 ──
+
+function goalCard() {
+  const s = state.settings;
+  const goal = s.goal || {};
+  const condLabel = { pregnancy: '孕期', t2d: '二型糖尿病' }[s.condition] || '';
+
+  const card = el('div.card', {},
+    el('h2', {}, '目标与建议',
+      el('button.h-action', { type: 'button', onclick: () => { adviceOpen = !adviceOpen; draw(); } },
+        adviceOpen ? '收起' : (goal.targetWeight ? '查看建议 ›' : '设定目标 ›'))),
+  );
+
+  // 摘要行
+  const parts = [];
+  if (goal.targetWeight && goal.targetDate) parts.push(`目标：${goal.targetDate} 前减到 ${goal.targetWeight} 公斤`);
+  if (goal.sugarControl || s.condition === 't2d') parts.push('控糖模式');
+  if (condLabel) parts.push(`状况：${condLabel}`);
+  card.appendChild(el('div.muted.small', {},
+    parts.length ? parts.join(' · ') : '设定目标（如：一个月减 2 公斤 / 控糖），根据你的身体数据生成每日饮食和运动建议。'));
+
+  if (!adviceOpen) return card;
+
+  // 目标表单
+  const weightInput = el('input', { type: 'number', inputmode: 'decimal', min: '0', step: '0.1', value: goal.targetWeight || '', placeholder: '如 60' });
+  const dateInput = el('input', { type: 'date', value: goal.targetDate || '', min: today() });
+  const sugarBtn = el('button', {
+    type: 'button', className: goal.sugarControl ? 'active' : '',
+    onclick: () => { sugarBtn.classList.toggle('active'); },
+  }, el('span.c-dot', { style: goal.sugarControl ? 'background:var(--s-gl)' : '' }), '控糖模式（低GI优先）');
+
+  card.appendChild(el('div.divider'));
+  card.appendChild(el('div.field-inline', {},
+    el('div.field', {}, el('label', {}, '目标体重（公斤，选填）'), weightInput),
+    el('div.field', {}, el('label', {}, '目标日期'), dateInput),
+  ));
+  card.appendChild(el('div.chips', {}, sugarBtn));
+
+  const result = el('div');
+  card.appendChild(el('button.btn.block', {
+    type: 'button', onclick: () => {
+      s.goal = {
+        targetWeight: parseFloat(weightInput.value) || null,
+        targetDate: dateInput.value || null,
+        sugarControl: sugarBtn.classList.contains('active'),
+      };
+      save();
+      renderAdvice();
+    },
+  }, '生成建议'));
+  card.appendChild(result);
+
+  function renderAdvice() {
+    clear(result);
+    const adv = buildAdvice();
+    if (adv.needProfile) {
+      result.appendChild(el('div.conclusion', {}, '请先在「我的」页填写性别、出生年份、身高、体重，才能按你的身体数据计算建议。'));
+      return;
+    }
+    for (const sec of adv.sections) {
+      result.appendChild(el('div', { style: 'font-weight:600;font-size:15px;margin-top:14px' }, sec.title));
+      for (const line of sec.lines) result.appendChild(el('div.conclusion', {}, line));
+    }
+    for (const wtext of adv.warnings) {
+      result.appendChild(el('div.conclusion', { style: 'color:var(--critical)' }, `⚠ ${wtext}`));
+    }
+    if (adv.plan) {
+      result.appendChild(el('button.btn.ghost.block', {
+        type: 'button', style: 'margin-top:12px',
+        onclick: () => openPlanEditor(null, adv.plan),
+      }, '按建议创建计划'));
+    }
+  }
+
+  // 已有目标时展开即生成
+  if (goal.targetWeight || goal.sugarControl || s.condition) renderAdvice();
+  return card;
 }
 
 function calendarCard() {
@@ -173,16 +262,19 @@ function openDayDetail(dateStr) {
   sheet(`${dateStr}`, body);
 }
 
-function openPlanEditor(plan) {
+function openPlanEditor(plan, prefill) {
   const isNew = !plan;
-  const nameInput = el('input', { type: 'text', value: plan ? plan.name : '', placeholder: '如：七月减脂计划' });
-  const startInput = el('input', { type: 'date', value: plan ? plan.start : today() });
-  const endInput = el('input', { type: 'date', value: plan ? plan.end : '' });
-  const intakeInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: plan && plan.intakeMax ? plan.intakeMax : '', placeholder: '如 1600' });
-  const exInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: plan && plan.exerciseMin ? plan.exerciseMin : '', placeholder: '如 300' });
-  const proteinInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: plan && plan.proteinMin ? plan.proteinMin : '', placeholder: '如 80' });
-  const noteInput = el('textarea', { placeholder: '如：每天快走 40 分钟，晚餐不吃主食（选填）' });
-  if (plan && plan.note) noteInput.value = plan.note;
+  const init = plan || prefill || {};
+  const nameInput = el('input', { type: 'text', value: init.name || '', placeholder: '如：七月减脂计划' });
+  const startInput = el('input', { type: 'date', value: init.start || today() });
+  const endInput = el('input', { type: 'date', value: init.end || '' });
+  const intakeInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: init.intakeMax || '', placeholder: '如 1600' });
+  const exInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: init.exerciseMin || '', placeholder: '如 300' });
+  const proteinInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: init.proteinMin || '', placeholder: '如 80' });
+  const carbInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: init.carbMax || '', placeholder: '如 180' });
+  const glInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: init.glMax || '', placeholder: '如 80' });
+  const noteInput = el('textarea', { placeholder: '如：每天快走 40 分钟，晚餐主食换低GI（选填）' });
+  if (init.note) noteInput.value = init.note;
 
   const s = sheet(isNew ? '新建计划' : '编辑计划',
     el('div.field', {}, el('label', {}, '计划名称'), nameInput),
@@ -194,6 +286,10 @@ function openPlanEditor(plan) {
     el('div.field', {}, el('label', {}, '每日摄入热量上限（千卡）'), intakeInput),
     el('div.field', {}, el('label', {}, '每日运动消耗下限（千卡）'), exInput),
     el('div.field', {}, el('label', {}, '每日蛋白质下限（克）'), proteinInput),
+    el('div.field-inline', {},
+      el('div.field', {}, el('label', {}, '每日碳水上限（克）'), carbInput),
+      el('div.field', {}, el('label', {}, '每日血糖负荷GL上限'), glInput),
+    ),
     el('div.field', {}, el('label', {}, '运动/饮食计划备注'), noteInput),
     el('button.btn.block', { type: 'button', onclick: submit }, isNew ? '创建计划' : '保存修改'),
   );
@@ -206,11 +302,13 @@ function openPlanEditor(plan) {
     const intakeMax = parseInt(intakeInput.value) || 0;
     const exerciseMin = parseInt(exInput.value) || 0;
     const proteinMin = parseInt(proteinInput.value) || 0;
-    if (!intakeMax && !exerciseMin && !proteinMin) return toast('至少设置一项目标');
+    const carbMax = parseInt(carbInput.value) || 0;
+    const glMax = parseInt(glInput.value) || 0;
+    if (!intakeMax && !exerciseMin && !proteinMin && !carbMax && !glMax) return toast('至少设置一项目标');
     const data = {
       id: plan ? plan.id : uid(),
       name, start: startInput.value, end: endInput.value,
-      intakeMax, exerciseMin, proteinMin,
+      intakeMax, exerciseMin, proteinMin, carbMax, glMax,
       note: noteInput.value.trim(),
     };
     if (isNew) state.plans.push(data);

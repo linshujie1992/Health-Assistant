@@ -13,6 +13,8 @@ export const METRICS = {
   exercise: { name: '运动消耗', unit: '千卡', color: 'var(--s-exercise)', get: d => dayHasData(d) ? dayExerciseKcal(d) : null },
   deficit:  { name: '热量缺口', unit: '千卡', color: 'var(--s-deficit)',  get: d => dayHasData(d) ? dayDeficit(d) : null },
   protein:  { name: '蛋白质',   unit: '克',   color: 'var(--s-protein)',  get: d => dayHasData(d) ? dayIntake(d).protein : null },
+  carbs:    { name: '碳水化合物', unit: '克', color: 'var(--s-carbs)',    get: d => dayHasData(d) ? dayIntake(d).carbs : null },
+  gl:       { name: '血糖负荷GL', unit: 'GL', color: 'var(--s-gl)',      get: d => dayHasData(d) ? dayIntake(d).gl : null },
   weight:   { name: '体重',     unit: '公斤', color: 'var(--s-weight)',   get: d => { const day = getDay(d); return day && day.weight != null ? day.weight : null; } },
 };
 
@@ -77,6 +79,7 @@ function draw() {
       quickQ('最近一周摄入 vs 消耗？', '7', ['intake', 'burn']),
       quickQ('这个月热量缺口如何？', '30', ['deficit']),
       quickQ('近三个月蛋白质趋势？', '90', ['protein']),
+      quickQ('最近一月控糖情况（碳水+GL）？', '30', ['carbs', 'gl']),
     ),
   ));
 
@@ -114,8 +117,9 @@ function draw() {
       color: METRICS[key].color,
       values: buckets.map(b => bucketValue(b.dates, METRICS[key].get)),
     }));
+    const title = series.map(s => s.name).join(' / ');
     const card = el('div.card', {},
-      el('h2', {}, `${series.map(s => s.name).join(' / ')}（${g.unit}）`),
+      el('h2', {}, g.unit === 'GL' ? title : `${title}（${g.unit}）`),
     );
     renderLineChart(card, { buckets, series, unit: g.unit, includeZero: g.unit !== '公斤', yDigits: g.unit === '公斤' ? 1 : 0 });
     container.appendChild(card);
@@ -425,6 +429,8 @@ function drawSingleDay() {
     dayTile('总消耗', burn.total == null ? '—' : fmtNum(burn.total), '千卡', 'var(--s-burn)'),
     dayTile('热量缺口', deficit == null ? '—' : (deficit > 0 ? '+' : '') + fmtNum(deficit), '千卡', 'var(--s-deficit)'),
     dayTile('蛋白质', fmtNum(intake.protein, 1), '克', 'var(--s-protein)'),
+    dayTile('碳水化合物', fmtNum(intake.carbs, 1), '克', 'var(--s-carbs)'),
+    dayTile('血糖负荷 GL', fmtNum(intake.gl), '', 'var(--s-gl)'),
   ));
 
   // 分餐条形（单一系列一种颜色，粗细 ≤24px，端头 4px 圆角）

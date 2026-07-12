@@ -38,6 +38,12 @@ function profileCard() {
     el('option', { value: '1.725' }, '高度活动（重体力）'),
   );
   activitySel.value = String(s.activity || 1.2);
+  const condSel = el('select', {},
+    el('option', { value: '' }, '无'),
+    el('option', { value: 'pregnancy' }, '孕期'),
+    el('option', { value: 't2d' }, '二型糖尿病'),
+  );
+  condSel.value = s.condition || '';
 
   const bmrInfo = el('div.conclusion', {});
   const updateBmr = () => {
@@ -58,10 +64,12 @@ function profileCard() {
     s.height = parseFloat(heightInput.value) || null;
     s.weight = parseFloat(weightInput.value) || null;
     s.activity = parseFloat(activitySel.value) || 1.2;
+    s.condition = condSel.value;
     save();
     updateBmr();
   };
-  for (const inp of [genderSel, birthInput, heightInput, weightInput, activitySel]) inp.addEventListener('change', apply);
+  for (const inp of [genderSel, birthInput, heightInput, weightInput, activitySel, condSel]) inp.addEventListener('change', apply);
+  condSel.addEventListener('change', () => draw()); // 切换状况后刷新提示文字
 
   return el('div.card', {},
     el('h2', {}, '身体信息'),
@@ -74,6 +82,11 @@ function profileCard() {
       el('div.field', {}, el('label', {}, '初始体重（公斤）'), weightInput),
     ),
     el('div.field', {}, el('label', {}, '日常活动量（不含刻意运动）'), activitySel),
+    el('div.field', {}, el('label', {}, '特殊状况（影响"目标与建议"和知识排序）'), condSel),
+    el('div.muted.small', { style: 'margin-bottom:10px' },
+      s.condition === 'pregnancy' ? '已选择孕期：建议引擎不会给出减重和热量缺口建议，孕期知识会排在知识库最前面。'
+      : s.condition === 't2d' ? '已选择二型糖尿病：建议引擎会自动加入低GI控糖建议，相关知识排在知识库最前面。'
+      : ''),
     bmrInfo,
   );
 }

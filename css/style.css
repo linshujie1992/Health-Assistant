@@ -31,6 +31,8 @@
   --s-deficit: #008300;
   --s-weight: #4a3aa7;
   --s-exercise: #eb6834;
+  --s-carbs: #e87ba4;
+  --s-gl: #e34948;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -59,6 +61,8 @@
     --s-deficit: #008300;
     --s-weight: #9085e9;
     --s-exercise: #d95926;
+    --s-carbs: #d55181;
+    --s-gl: #e66767;
   }
 }
 
@@ -435,6 +439,20 @@ body {
 .cal-cell.st-partial .cal-mark { color: var(--warning); }
 .cal-cell.st-missed .cal-mark { color: var(--critical); }
 .cal-cell.st-nodata .cal-mark { color: var(--ink-muted); }
+
+/* GI 分类徽标（文字+颜色，不只靠颜色区分） */
+.gi-badge {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 600; letter-spacing: 0;
+  border-radius: 9999px; padding: 1px 8px; white-space: nowrap;
+}
+.gi-badge.gi-low { color: var(--good-text); background: rgba(12, 163, 12, 0.12); }
+.gi-badge.gi-mid { color: #8a5a00; background: rgba(250, 178, 25, 0.18); }
+.gi-badge.gi-high { color: var(--critical); background: rgba(208, 59, 59, 0.12); }
+.gi-badge.gi-none { color: var(--ink-muted); background: var(--canvas); }
+@media (prefers-color-scheme: dark) {
+  .gi-badge.gi-mid { color: #fab219; }
+}
 
 /* 达标状态徽标（图标+文字，不只靠颜色） */
 .status-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; letter-spacing: -0.01em; font-weight: 600; }

@@ -1,7 +1,7 @@
 // 记录页：每日饮食、运动、体重记录
 
 import { state, save, uid, today, addDays, weekdayCN, ensureDay, pruneDay, getDay, dayIntake, dayBurn, dayDeficit, planStatus } from './store.js';
-import { searchFoods } from './foods.js';
+import { searchFoods, giClass } from './foods.js';
 import { EXERCISES, exerciseKcal, searchExercises } from './exercises.js';
 import { weightAt } from './store.js';
 import { el, clear, sheet, toast, fmtNum } from './ui.js';
@@ -42,6 +42,9 @@ function draw() {
     tile('热量缺口', deficit == null ? '—' : (deficit > 0 ? '+' : '') + fmtNum(deficit), '千卡', 'var(--s-deficit)',
       deficit == null ? '' : deficit >= 0 ? '消耗大于摄入' : '摄入大于消耗'),
     tile('蛋白质', fmtNum(intake.protein, 1), '克', 'var(--s-protein)'),
+    tile('碳水化合物', fmtNum(intake.carbs, 1), '克', 'var(--s-carbs)'),
+    tile('血糖负荷 GL', fmtNum(intake.gl), '', 'var(--s-gl)',
+      intake.gl > 0 ? (intake.gl < 80 ? '全天 <80 为低负荷' : intake.gl <= 120 ? '中负荷（80~120）' : '高负荷（>120），注意控糖') : '按食物 GI × 碳水自动累计'),
   ));
 
   // 餐次
@@ -109,7 +112,10 @@ function mealCard(meal, mi) {
       card.appendChild(el('div.row', {},
         el('div.r-main', {},
           el('div.r-title', {}, it.label),
-          el('div.r-sub', {}, it.grams ? `${fmtNum(it.grams)} 克 · 蛋白质 ${fmtNum(it.protein || 0, 1)} 克` : `蛋白质 ${fmtNum(it.protein || 0, 1)} 克`),
+          el('div.r-sub', {},
+            (it.grams ? `${fmtNum(it.grams)} 克 · ` : '') +
+            `蛋白质 ${fmtNum(it.protein || 0, 1)} 克 · 碳水 ${fmtNum(it.carbs || 0, 1)} 克` +
+            (it.gl ? ` · GL ${fmtNum(it.gl)}` : '')),
         ),
         el('span.r-val', {}, `${fmtNum(it.kcal)} 千卡`),
         el('button.r-del', { type: 'button', 'aria-label': '删除', onclick: () => removeItem(mi, it.id) }, '✕'),
@@ -181,10 +187,13 @@ function openAddFood(mi, mealName) {
         return;
       }
       for (const f of list) {
+        const g = giClass(f.gi);
         results.appendChild(el('div.food-item', { onclick: () => pickFood(f) },
           el('div', {},
-            el('div.f-name', {}, f.n, f.custom ? el('span.f-badge', {}, '自定义') : null),
-            el('div.f-meta', {}, `${f.k} 千卡 / 100克 · 蛋白质 ${f.p} 克 / 100克`)),
+            el('div.f-name', {}, f.n,
+              f.custom ? el('span.f-badge', {}, '自定义') : null,
+              el('span', { className: `gi-badge ${g.cls}`, style: 'margin-left:6px' }, g.label + (f.gi != null ? ` ${f.gi}` : ''))),
+            el('div.f-meta', {}, `${f.k} 千卡 · 蛋白质 ${f.p} 克 · 碳水 ${f.t != null ? f.t : '—'} 克 / 100克`)),
           el('span', { style: 'color:var(--ink-muted)' }, '›'),
         ));
       }
@@ -203,13 +212,19 @@ function openAddFood(mi, mealName) {
     const updatePreview = () => {
       const g = parseFloat(gramsInput.value);
       if (g > 0) {
-        preview.textContent = `≈ ${Math.round(f.k * g / 100)} 千卡 · 蛋白质 ${(f.p * g / 100).toFixed(1)} 克`;
+        const carbs = (f.t || 0) * g / 100;
+        const gl = f.gi != null ? Math.round(f.gi * carbs / 100) : 0;
+        preview.textContent = `≈ ${Math.round(f.k * g / 100)} 千卡 · 蛋白质 ${(f.p * g / 100).toFixed(1)} 克 · 碳水 ${carbs.toFixed(1)} 克` +
+          (f.gi != null ? ` · GL ${gl}` : '');
       } else preview.textContent = '输入分量后自动计算';
     };
     gramsInput.addEventListener('input', updatePreview);
 
-    body.appendChild(el('div', { style: 'font-size:16px;font-weight:600;margin-bottom:4px' }, f.n));
-    body.appendChild(el('div.muted.small', { style: 'margin-bottom:12px' }, `${f.k} 千卡 / 100克 · 蛋白质 ${f.p} 克 / 100克`));
+    const gcls = giClass(f.gi);
+    body.appendChild(el('div', { style: 'font-size:16px;font-weight:600;margin-bottom:4px' }, f.n,
+      el('span', { className: `gi-badge ${gcls.cls}`, style: 'margin-left:8px' }, gcls.label + (f.gi != null ? ` ${f.gi}` : ''))));
+    body.appendChild(el('div.muted.small', { style: 'margin-bottom:12px' },
+      `每100克：${f.k} 千卡 · 蛋白质 ${f.p} 克 · 碳水 ${f.t != null ? f.t : '—'} 克`));
 
     // 常用单位快捷键
     if (f.u && f.u.length) {
@@ -231,10 +246,13 @@ function openAddFood(mi, mealName) {
       type: 'button', style: 'margin-top:12px', onclick: () => {
         const g = parseFloat(gramsInput.value);
         if (!(g > 0)) return toast('请输入分量');
+        const carbs = Math.round((f.t || 0) * g / 10) / 10;
         addItem({
           id: uid(), label: f.n, grams: g,
           kcal: Math.round(f.k * g / 100),
           protein: Math.round(f.p * g / 10) / 10 * 1, // 保留一位小数
+          carbs,
+          gl: f.gi != null ? Math.round(f.gi * carbs / 100) : 0,
         });
         s.close();
       },
@@ -246,11 +264,13 @@ function openAddFood(mi, mealName) {
     const nameInput = el('input', { type: 'text', placeholder: '可不填，如：外卖午餐' });
     const kcalInput = el('input', { type: 'number', inputmode: 'decimal', placeholder: '千卡', min: '0' });
     const proteinInput = el('input', { type: 'number', inputmode: 'decimal', placeholder: '克（选填）', min: '0' });
+    const carbsInput = el('input', { type: 'number', inputmode: 'decimal', placeholder: '克（选填）', min: '0' });
     body.appendChild(el('div.field', {}, el('label', {}, '名称（选填）'), nameInput));
     body.appendChild(el('div.field-inline', {},
       el('div.field', {}, el('label', {}, '热量（千卡）'), kcalInput),
       el('div.field', {}, el('label', {}, '蛋白质（克）'), proteinInput),
     ));
+    body.appendChild(el('div.field', {}, el('label', {}, '碳水化合物/糖分（克）'), carbsInput));
     body.appendChild(el('button.btn.block', {
       type: 'button', onclick: () => {
         const kcal = parseFloat(kcalInput.value);
@@ -261,6 +281,8 @@ function openAddFood(mi, mealName) {
           grams: null,
           kcal: Math.round(kcal),
           protein: parseFloat(proteinInput.value) || 0,
+          carbs: parseFloat(carbsInput.value) || 0,
+          gl: 0, // 直接输入无法确定 GI，GL 不计
         });
         s.close();
       },
@@ -273,10 +295,16 @@ function openAddFood(mi, mealName) {
     const nameInput = el('input', { type: 'text', value: prefill || '' });
     const kInput = el('input', { type: 'number', inputmode: 'decimal', min: '0', placeholder: '每100克热量' });
     const pInput = el('input', { type: 'number', inputmode: 'decimal', min: '0', placeholder: '每100克蛋白质（选填）' });
+    const tInput = el('input', { type: 'number', inputmode: 'decimal', min: '0', placeholder: '每100克碳水（选填）' });
+    const giInput = el('input', { type: 'number', inputmode: 'numeric', min: '0', max: '110', placeholder: '0~110（选填）' });
     body.appendChild(el('div.field', {}, el('label', {}, '食物名称'), nameInput));
     body.appendChild(el('div.field-inline', {},
       el('div.field', {}, el('label', {}, '热量（千卡/100克）'), kInput),
       el('div.field', {}, el('label', {}, '蛋白质（克/100克）'), pInput),
+    ));
+    body.appendChild(el('div.field-inline', {},
+      el('div.field', {}, el('label', {}, '碳水（克/100克）'), tInput),
+      el('div.field', {}, el('label', {}, 'GI 值'), giInput),
     ));
     body.appendChild(el('button.btn.block', {
       type: 'button', onclick: () => {
@@ -284,7 +312,13 @@ function openAddFood(mi, mealName) {
         const k = parseFloat(kInput.value);
         if (!n) return toast('请输入名称');
         if (!(k >= 0) || kInput.value === '') return toast('请输入热量');
-        state.customFoods.push({ n, k, p: parseFloat(pInput.value) || 0, c: '自定义', u: [], a: [] });
+        state.customFoods.push({
+          n, k,
+          p: parseFloat(pInput.value) || 0,
+          t: parseFloat(tInput.value) || 0,
+          gi: giInput.value !== '' ? parseFloat(giInput.value) : null,
+          c: '自定义', u: [], a: [],
+        });
         save();
         toast('已保存到自定义食物');
         renderMode();
