@@ -1,6 +1,6 @@
 // 知识库：低GI食物速查 + 内置健康知识（只读）+ 用户自建主题
 
-import { state, save, uid } from './store.js';
+import { state, save, uid, hasCondition } from './store.js';
 import { FOODS, giClass } from './foods.js';
 import { BUILTIN_TOPICS } from './knowledge-builtin.js';
 import { el, clear, sheet, toast, confirmDialog } from './ui.js';
@@ -21,12 +21,14 @@ function findTopic(id) {
   return BUILTIN_TOPICS.find(t => t.id === id) || state.knowledge.find(t => t.id === id) || null;
 }
 
-// 按用户特殊状况把最相关的内置主题排到最前
+// 按用户特殊状况把最相关的内置主题排到最前（支持多选：孕期、糖尿病可同时置顶）
 function sortedBuiltins() {
-  const cond = state.settings.condition;
-  const pri = { pregnancy: 'builtin-pregnancy', t2d: 'builtin-t2d' }[cond];
-  if (!pri) return BUILTIN_TOPICS;
-  return [...BUILTIN_TOPICS].sort((a, b) => (a.id === pri ? -1 : 0) - (b.id === pri ? -1 : 0));
+  const pri = [];
+  if (hasCondition('pregnancy')) pri.push('builtin-pregnancy');
+  if (hasCondition('t2d')) pri.push('builtin-t2d', 'builtin-gi');
+  if (!pri.length) return BUILTIN_TOPICS;
+  const rank = id => { const i = pri.indexOf(id); return i === -1 ? pri.length : i; };
+  return [...BUILTIN_TOPICS].sort((a, b) => rank(a.id) - rank(b.id));
 }
 
 function draw() {

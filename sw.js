@@ -1,7 +1,7 @@
 // Service Worker：预缓存应用文件，离线可用；
 // 采用“缓存优先 + 后台更新”策略，联网时自动拉取新版本，下次打开生效。
 
-const CACHE = 'health-assistant-v2';
+const CACHE = 'health-assistant-v3';
 const ASSETS = [
   './',
   './index.html',

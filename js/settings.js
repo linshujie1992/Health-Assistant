@@ -1,6 +1,6 @@
 // 我的：个人信息（用于代谢计算）、餐次设置、数据备份与恢复
 
-import { state, save, exportJSON, importJSON, today, bmrAt, DEFAULT_MEALS } from './store.js';
+import { state, save, exportJSON, importJSON, today, bmrAt, hasCondition, DEFAULT_MEALS } from './store.js';
 import { el, clear, sheet, toast, fmtNum, confirmDialog } from './ui.js';
 
 let container = null;
@@ -38,12 +38,26 @@ function profileCard() {
     el('option', { value: '1.725' }, '高度活动（重体力）'),
   );
   activitySel.value = String(s.activity || 1.2);
-  const condSel = el('select', {},
-    el('option', { value: '' }, '无'),
-    el('option', { value: 'pregnancy' }, '孕期'),
-    el('option', { value: 't2d' }, '二型糖尿病'),
+  // 特殊状况多选（可同时为孕期 + 二型糖尿病）
+  function condChip(key, label) {
+    const active = hasCondition(key);
+    return el('button', {
+      type: 'button', className: active ? 'active' : '',
+      onclick: () => {
+        if (!Array.isArray(s.conditions)) s.conditions = [];
+        s.conditions = active ? s.conditions.filter(x => x !== key) : [...s.conditions, key];
+        save(); draw();
+      },
+    }, el('span.c-dot', { style: active ? 'background:var(--accent)' : '' }), label);
+  }
+  const condChips = el('div.chips', { style: 'margin-bottom:6px' },
+    condChip('pregnancy', '孕期'),
+    condChip('t2d', '二型糖尿病'),
   );
-  condSel.value = s.condition || '';
+  const condNotes = [];
+  if (hasCondition('pregnancy')) condNotes.push('孕期：建议引擎不会给出减重和热量缺口建议，孕期知识置顶');
+  if (hasCondition('t2d')) condNotes.push('二型糖尿病：自动加入低GI控糖建议，控糖知识置顶');
+  if (hasCondition('pregnancy') && hasCondition('t2d')) condNotes.push('两者同时选择时按"孕期合并糖尿病"给出更谨慎的建议');
 
   const bmrInfo = el('div.conclusion', {});
   const updateBmr = () => {
@@ -64,12 +78,10 @@ function profileCard() {
     s.height = parseFloat(heightInput.value) || null;
     s.weight = parseFloat(weightInput.value) || null;
     s.activity = parseFloat(activitySel.value) || 1.2;
-    s.condition = condSel.value;
     save();
     updateBmr();
   };
-  for (const inp of [genderSel, birthInput, heightInput, weightInput, activitySel, condSel]) inp.addEventListener('change', apply);
-  condSel.addEventListener('change', () => draw()); // 切换状况后刷新提示文字
+  for (const inp of [genderSel, birthInput, heightInput, weightInput, activitySel]) inp.addEventListener('change', apply);
 
   return el('div.card', {},
     el('h2', {}, '身体信息'),
@@ -82,11 +94,8 @@ function profileCard() {
       el('div.field', {}, el('label', {}, '初始体重（公斤）'), weightInput),
     ),
     el('div.field', {}, el('label', {}, '日常活动量（不含刻意运动）'), activitySel),
-    el('div.field', {}, el('label', {}, '特殊状况（影响"目标与建议"和知识排序）'), condSel),
-    el('div.muted.small', { style: 'margin-bottom:10px' },
-      s.condition === 'pregnancy' ? '已选择孕期：建议引擎不会给出减重和热量缺口建议，孕期知识会排在知识库最前面。'
-      : s.condition === 't2d' ? '已选择二型糖尿病：建议引擎会自动加入低GI控糖建议，相关知识排在知识库最前面。'
-      : ''),
+    el('div.field', { style: 'margin-bottom:6px' }, el('label', {}, '特殊状况（可多选，影响"目标与建议"和知识排序）'), condChips),
+    condNotes.length ? el('div.muted.small', { style: 'margin-bottom:10px' }, condNotes.join('；') + '。') : null,
     bmrInfo,
   );
 }
@@ -160,7 +169,9 @@ function backupCard() {
   return el('div.card', {},
     el('h2', {}, '数据备份'),
     el('div.small', { style: 'margin-bottom:10px' },
-      `目前共有 ${dayCount} 天记录、${state.plans.length} 个计划、${state.knowledge.length} 个知识主题、${state.customFoods.length} 个自定义食物。所有数据只保存在本机。`),
+      `目前共有 ${dayCount} 天记录、${state.plans.length} 个计划、${state.knowledge.length} 个知识主题、${state.customFoods.length} 个自定义食物。所有数据只保存在本机。` +
+      (state.settings.lastExport ? `上次导出备份：${state.settings.lastExport}。` : '还没有导出过备份。') +
+      '每周一打开应用会自动提醒备份。'),
     el('div', { style: 'display:flex;gap:10px' },
       el('button.btn.block', { type: 'button', style: 'flex:1', onclick: doExport }, '导出备份'),
       el('button.btn.ghost.block', { type: 'button', style: 'flex:1', onclick: () => fileInput.click() }, '导入恢复'),
@@ -179,7 +190,30 @@ function doExport() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 3000);
+  state.settings.lastExport = today();
+  save();
   toast('已导出备份文件');
+}
+
+// 每周一打开应用时弹出备份提醒（每个周一只提醒一次；没有数据时不提醒）
+export function maybeWeeklyBackupReminder() {
+  const s = state.settings;
+  if (new Date().getDay() !== 1) return;
+  if (s.lastBackupRemind === today()) return;
+  if (!Object.keys(state.days).length) return;
+  s.lastBackupRemind = today();
+  save();
+
+  const dayCount = Object.keys(state.days).length;
+  const sh = sheet('每周备份提醒',
+    el('div.small', { style: 'line-height:1.7;margin-bottom:6px' },
+      `新的一周开始啦！目前共有 ${dayCount} 天记录、${state.plans.length} 个计划、${state.knowledge.length} 个知识主题。`),
+    el('div.muted.small', { style: 'margin-bottom:14px' },
+      (s.lastExport ? `上次导出备份：${s.lastExport}。` : '你还没有导出过备份。') +
+      '所有数据只保存在这台手机上，建议每周导出一份 JSON 备份，存到 iCloud 或微信收藏，防止意外丢失。'),
+    el('button.btn.block', { type: 'button', onclick: () => { doExport(); sh.close(); } }, '立即导出备份'),
+    el('button.btn.subtle.block', { type: 'button', style: 'margin-top:10px', onclick: () => sh.close() }, '稍后再说'),
+  );
 }
 
 // ── 关于 ──

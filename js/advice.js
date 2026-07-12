@@ -2,7 +2,7 @@
 // 根据身体信息 + 特殊状况（孕期/二型糖尿病）+ 目标，生成饮食与运动建议，
 // 并给出可一键创建的计划参数。内容为一般性参考，不构成医疗建议。
 
-import { state, weightAt, bmrAt, today, addDays, parseDate } from './store.js';
+import { state, weightAt, bmrAt, today, addDays, parseDate, hasCondition } from './store.js';
 import { exerciseKcal } from './exercises.js';
 
 const round10 = v => Math.round(v / 10) * 10;
@@ -24,8 +24,9 @@ export function buildAdvice() {
   const tdee = Math.round(bmr * (s.activity || 1.2));
   const { bmi, label } = bmiInfo(w, s.height);
   const goal = s.goal || {};
-  const cond = s.condition || '';
-  const sugarMode = cond === 't2d' || !!goal.sugarControl;
+  const hasPreg = hasCondition('pregnancy');
+  const hasT2d = hasCondition('t2d');
+  const sugarMode = hasT2d || !!goal.sugarControl;
 
   const sections = [];
   const warnings = [];
@@ -39,36 +40,41 @@ export function buildAdvice() {
     ],
   });
 
-  // ── 孕期：不做减重建议 ──
-  if (cond === 'pregnancy') {
+  // ── 孕期：不做减重建议（可与二型糖尿病叠加） ──
+  if (hasPreg) {
     if (goal.targetWeight && goal.targetWeight < w) {
       warnings.push('孕期不建议减重或制造热量缺口，已忽略减重目标。产检体重管理请遵医生指导。');
     }
-    sections.push({
-      title: '孕期饮食建议',
-      lines: [
-        `热量：孕早期按日常水平（约 ${tdee} 千卡）即可；孕中期约 +300 千卡（${tdee + 300}）；孕晚期约 +450 千卡（${tdee + 450}）。无需"一人吃两人份"。`,
-        `蛋白质：每天约 ${Math.round(w * 1.0 + 15)}~${Math.round(w * 1.0 + 25)} 克（比平时多一杯奶、一个蛋、一两瘦肉即可）。`,
-        '主食选低GI、少量多餐（三餐+2~3次加餐），孕期血糖天然偏高，含糖饮料和果汁尽量不碰。',
-        '严格避开：酒精、生食、高汞鱼；咖啡因每天 <200 毫克。详见知识库「孕期饮食与运动注意」。',
-      ],
-    });
+    const dietLines = [
+      `热量：孕早期按日常水平（约 ${tdee} 千卡）即可；孕中期约 +300 千卡（${tdee + 300}）；孕晚期约 +450 千卡（${tdee + 450}）。无需"一人吃两人份"。`,
+      `蛋白质：每天约 ${Math.round(w * 1.0 + 15)}~${Math.round(w * 1.0 + 25)} 克（比平时多一杯奶、一个蛋、一两瘦肉即可）。`,
+      '主食选低GI、少量多餐（三餐+2~3次加餐），孕期血糖天然偏高，含糖饮料和果汁尽量不碰。',
+      '严格避开：酒精、生食、高汞鱼；咖啡因每天 <200 毫克。详见知识库「孕期饮食与运动注意」。',
+    ];
+    if (hasT2d || sugarMode) {
+      dietLines.push('控糖重点：每餐主食定量并全部换低GI，早餐碳水适当减少（清晨升糖激素高），全天血糖负荷 GL 建议控制在 90 以内，用本应用逐餐记录形成饮食台账。');
+    }
+    sections.push({ title: '孕期饮食建议', lines: dietLines });
     sections.push({
       title: '孕期运动建议',
       lines: [
         '如无并发症，每周至少 150 分钟中等强度运动：散步、快走、游泳、固定单车、孕妇瑜伽。',
         `参考消耗（按你体重估算）：散步30分钟 ≈ ${exerciseKcal(3.0, w, 30)} 千卡，快走30分钟 ≈ ${exerciseKcal(4.3, w, 30)} 千卡，游泳30分钟 ≈ ${exerciseKcal(6.0, w, 30)} 千卡。`,
+        hasT2d ? '餐后散步 15~20 分钟对控制血糖尤其有帮助；使用降糖药物者随身备糖果防低血糖。' : null,
         '出现出血、宫缩、头晕、胎动减少等信号立即停止并就医；运动方案有并发症时以医生为准。',
-      ],
+      ].filter(Boolean),
     });
     plan = {
-      name: '孕期健康计划',
+      name: hasT2d ? '孕期控糖计划' : '孕期健康计划',
       start: today(), end: addDays(today(), 29),
       intakeMax: 0, exerciseMin: 100,
       proteinMin: Math.round(w * 1.0 + 15),
       carbMax: 0, glMax: sugarMode ? 90 : 0,
       note: '每天散步或孕妇瑜伽 30 分钟；主食低GI、少量多餐；数据仅作记录参考，产检指标以医生为准。',
     };
+    if (hasT2d) {
+      warnings.push('孕期合并糖尿病属于高风险情况，血糖监测频率、饮食方案和用药必须由产科与内分泌科医生共同制定，本应用只能帮你做记录台账。');
+    }
     warnings.push('以上为一般性常识参考，孕期个体差异大，请以产检医生的意见为准。');
     return { sections, warnings, plan };
   }
@@ -112,7 +118,7 @@ export function buildAdvice() {
   if (sugarMode) {
     const carbMax = round5((recIntake * 0.5) / 4);
     dietLines.push(`控糖：碳水每天约 ${carbMax} 克以内（约占总热量一半），主食全部换低GI（糙米、燕麦、全麦、豆类）；全天血糖负荷 GL 控制在 80 以内；先吃菜再吃肉最后吃主食。`);
-    if (cond === 't2d') {
+    if (hasT2d) {
       dietLines.push('规律进餐、定时定量，避免血糖大起大落；外食技巧见知识库「二型糖尿病饮食与运动」。');
     }
   }
@@ -123,7 +129,7 @@ export function buildAdvice() {
     '每周 2~3 次力量训练（深蹲、俯卧撑、哑铃），保住肌肉就是保住基础代谢。',
     '日常多动：每天多走 3000~5000 步、爬楼梯，额外消耗 100~300 千卡。',
   ];
-  if (cond === 't2d') {
+  if (hasT2d) {
     exLines.push('餐后 30~60 分钟运动降糖效果最好；用胰岛素/磺脲类药物者随身带糖果防低血糖，血糖过高（>16.7）时暂停运动。');
   }
   sections.push({ title: '运动建议', lines: exLines });
@@ -140,7 +146,7 @@ export function buildAdvice() {
     note: '按"目标与建议"自动生成，可随时修改。',
   };
 
-  if (cond === 't2d') {
+  if (hasT2d) {
     warnings.push('二型糖尿病的药物、血糖监测方案请严格遵医嘱；本建议仅为一般性饮食运动参考。');
   }
   warnings.push('以上建议按通用公式估算，仅供参考，不构成医疗建议。');

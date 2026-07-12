@@ -4,7 +4,7 @@ import { renderLog } from './log.js';
 import { renderCharts } from './charts.js';
 import { renderCalendar } from './calendar.js';
 import { renderKnowledge } from './knowledge.js';
-import { renderSettings } from './settings.js';
+import { renderSettings, maybeWeeklyBackupReminder } from './settings.js';
 
 const TABS = [
   { id: 'log', label: '记录', render: renderLog },
@@ -36,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   }
   switchTab(activeTab);
+
+  // 每周一打开应用时提醒备份数据
+  maybeWeeklyBackupReminder();
 
   // 争取持久化存储，降低系统清理本地数据的风险
   if (navigator.storage && navigator.storage.persist) {

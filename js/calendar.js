@@ -1,6 +1,6 @@
 // 计划页：制定每日目标计划，以日历呈现每天的达标状态
 
-import { state, save, uid, today, fmtDate, parseDate, planFor, planStatus, planCheck, dayHasData, dayIntake, dayBurn, dayExerciseKcal, getDay } from './store.js';
+import { state, save, uid, today, fmtDate, parseDate, planFor, planStatus, planCheck, dayHasData, dayIntake, dayBurn, dayExerciseKcal, getDay, hasCondition } from './store.js';
 import { buildAdvice } from './advice.js';
 import { el, clear, sheet, toast, fmtNum, confirmDialog } from './ui.js';
 
@@ -107,7 +107,8 @@ function draw() {
 function goalCard() {
   const s = state.settings;
   const goal = s.goal || {};
-  const condLabel = { pregnancy: '孕期', t2d: '二型糖尿病' }[s.condition] || '';
+  const condLabel = [hasCondition('pregnancy') ? '孕期' : null, hasCondition('t2d') ? '二型糖尿病' : null]
+    .filter(Boolean).join('＋');
 
   const card = el('div.card', {},
     el('h2', {}, '目标与建议',
@@ -118,7 +119,7 @@ function goalCard() {
   // 摘要行
   const parts = [];
   if (goal.targetWeight && goal.targetDate) parts.push(`目标：${goal.targetDate} 前减到 ${goal.targetWeight} 公斤`);
-  if (goal.sugarControl || s.condition === 't2d') parts.push('控糖模式');
+  if (goal.sugarControl || hasCondition('t2d')) parts.push('控糖模式');
   if (condLabel) parts.push(`状况：${condLabel}`);
   card.appendChild(el('div.muted.small', {},
     parts.length ? parts.join(' · ') : '设定目标（如：一个月减 2 公斤 / 控糖），根据你的身体数据生成每日饮食和运动建议。'));

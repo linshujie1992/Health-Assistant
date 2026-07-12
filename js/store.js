@@ -14,8 +14,10 @@ function defaultState() {
       weight: null,        // kg，初始体重（有记录后取最近记录）
       activity: 1.2,       // 日常活动系数（不含运动，1.2=久坐）
       mealNames: [...DEFAULT_MEALS],
-      condition: '',       // 特殊状况: '' | 'pregnancy' 孕期 | 't2d' 二型糖尿病
+      conditions: [],      // 特殊状况（可多选）: 'pregnancy' 孕期 | 't2d' 二型糖尿病
       goal: null,          // { targetWeight, targetDate, sugarControl }
+      lastBackupRemind: '',// 上次弹出每周备份提醒的日期
+      lastExport: '',      // 上次导出备份的日期
     },
     days: {},              // 'YYYY-MM-DD' -> { meals, exercises, weight, note }
     customFoods: [],       // { n, k, p, c:'自定义', u:[], a:[] }
@@ -33,7 +35,7 @@ function load() {
       const s = JSON.parse(raw);
       // 与默认结构合并，兼容旧版本数据
       const d = defaultState();
-      return {
+      const merged = {
         ...d, ...s,
         settings: { ...d.settings, ...(s.settings || {}) },
         days: s.days || {},
@@ -41,6 +43,14 @@ function load() {
         plans: s.plans || [],
         knowledge: s.knowledge || [],
       };
+      // 迁移旧版单选 condition → 多选 conditions
+      if (typeof merged.settings.condition === 'string') {
+        if (merged.settings.condition && !merged.settings.conditions.length) {
+          merged.settings.conditions = [merged.settings.condition];
+        }
+        delete merged.settings.condition;
+      }
+      return merged;
     }
   } catch (e) {
     console.error('读取本地数据失败', e);
@@ -63,6 +73,11 @@ export function save() {
 export function replaceState(newState) {
   state = { ...defaultState(), ...newState };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+export function hasCondition(key) {
+  const c = state.settings.conditions;
+  return Array.isArray(c) && c.includes(key);
 }
 
 export function uid() {
