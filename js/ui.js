@@ -36,13 +36,31 @@ export function clear(node) {
 
 // 底部抽屉。返回 { close, body }
 export function sheet(title, ...children) {
+  const previous = document.activeElement;
   const closeBtn = el('button.s-close', { type: 'button', 'aria-label': '关闭' }, '✕');
-  const body = el('div.sheet', {}, el('h3', {}, title, closeBtn), ...children);
+  const heading = el('h3', { id: `dialog-${Date.now()}` }, title, closeBtn);
+  const body = el('div.sheet', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': heading.id }, heading, ...children);
   const mask = el('div.sheet-mask', {}, body);
-  const close = () => mask.remove();
+  const close = () => {
+    mask.remove(); document.removeEventListener('keydown', onKey);
+    const remaining = [...document.querySelectorAll('.sheet-mask')].at(-1);
+    if (remaining) remaining.querySelector('button')?.focus(); else if (previous?.isConnected) previous.focus();
+  };
+  const onKey = e => {
+    if ([...document.querySelectorAll('.sheet-mask')].at(-1) !== mask) return;
+    if (e.key === 'Escape') close();
+    if (e.key === 'Tab') {
+      const nodes = [...body.querySelectorAll('button,input,textarea,select,a[href]')].filter(x => !x.disabled && x.offsetParent !== null);
+      const first = nodes[0], last = nodes.at(-1);
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    }
+  };
   closeBtn.addEventListener('click', close);
   mask.addEventListener('click', e => { if (e.target === mask) close(); });
   document.body.appendChild(mask);
+  document.addEventListener('keydown', onKey);
+  closeBtn.focus();
   return { close, body };
 }
 
@@ -50,7 +68,7 @@ let toastTimer = null;
 export function toast(msg) {
   let t = document.getElementById('toast');
   if (!t) {
-    t = el('div', { id: 'toast' });
+    t = el('div', { id: 'toast', role: 'status', 'aria-live': 'polite' });
     document.body.appendChild(t);
   }
   t.textContent = msg;

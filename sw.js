@@ -1,54 +1,24 @@
-// Service Worker：预缓存应用文件，离线可用；
-// 采用“缓存优先 + 后台更新”策略，联网时自动拉取新版本，下次打开生效。
-
-const CACHE = 'health-assistant-v3';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './css/style.css',
-  './js/app.js',
-  './js/store.js',
-  './js/ui.js',
-  './js/foods.js',
-  './js/exercises.js',
-  './js/log.js',
-  './js/charts.js',
-  './js/calendar.js',
-  './js/knowledge.js',
-  './js/knowledge-builtin.js',
-  './js/advice.js',
-  './js/settings.js',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/apple-touch-icon.png',
-];
-
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+// App-shell cache only. Personal records live in localStorage, never in a network response.
+const CACHE = 'baby-agent-shell-v7';
+const ASSETS = ['./','./index.html','./manifest.webmanifest','./css/style.css','./css/baby.css',
+ './js/app.js','./js/ui.js','./js/journey/app.mjs','./js/journey/content.mjs',
+ './js/journey/dates.mjs','./js/journey/model.mjs','./js/journey/schedule.mjs','./js/journey/storage.mjs',
+ './js/foods.js','./js/journey/care.mjs','./js/journey/nutrition.mjs','./js/journey/extras.mjs',
+ './icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png'];
+self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))); });
+// No skipWaiting: do not replace scripts under a form currently being edited.
+self.addEventListener('activate', event => {
+ event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>(k.startsWith('health-assistant-')||k.startsWith('baby-agent-shell-'))&&k!==CACHE).map(k=>caches.delete(k)))));
 });
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fetched = fetch(e.request).then(resp => {
-        if (resp && resp.ok) {
-          const clone = resp.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return resp;
-      }).catch(() => cached);
-      return cached || fetched;
-    })
-  );
+self.addEventListener('fetch', event => {
+ if(event.request.method!=='GET')return;
+ const url=new URL(event.request.url);
+ if(url.origin!==location.origin)return;
+ const known=ASSETS.some(asset=>new URL(asset,self.registration.scope).pathname===url.pathname);
+ if(!known)return;
+ event.respondWith(caches.open(CACHE).then(async cache=>{
+   const cached=await cache.match(url.pathname);
+   if(cached)return cached;
+   return fetch(event.request);
+ }));
 });

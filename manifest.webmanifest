@@ -1,13 +1,13 @@
 {
-  "name": "健康助手",
-  "short_name": "健康助手",
-  "description": "个人健康助手：饮食热量、蛋白质、运动、体重记录与可视化分析，数据全部保存在本机。",
+  "name": "宝贝特工",
+  "short_name": "宝贝特工",
+  "description": "自己的孕期日程、健康记录与知识指南，仅本机保存。",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f5f7",
-  "theme_color": "#0066cc",
+  "background_color": "#fff8f5",
+  "theme_color": "#a43459",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
